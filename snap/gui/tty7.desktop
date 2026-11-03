@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=tty7
+Comment=Terminal workbench with persistent sessions and remote workspaces
+Exec=tty7
+Icon=${SNAP}/meta/gui/tty7.png
+Terminal=false
+Categories=System;TerminalEmulator;
+StartupWMClass=tty7

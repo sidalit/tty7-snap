@@ -1,0 +1,109 @@
+name: tty7
+base: core26
+version: '26.10.0'
+title: tty7
+icon: snap/gui/tty7.png
+summary: A GPU-rendered terminal with persistent sessions and remote workspaces
+description: |
+  tty7 is a Rust terminal workbench with GPU rendering, tabs and splits,
+  persistent sessions, a command-line interface, native SSH, SFTP, Git
+  integration and remote workspaces.
+
+  This strictly confined snap includes Bash, Git and SSH. Local shells and
+  commands remain confined; host SDKs, coding agents and global configuration
+  are unavailable. Remote workspaces run their tools on the remote computer.
+license: Apache-2.0
+grade: stable
+confinement: strict
+website: https://github.com/l0ng-ai/tty7
+source-code:
+  - https://github.com/l0ng-ai/tty7
+  - https://github.com/sidalit/tty7-snap
+issues:
+  - https://github.com/l0ng-ai/tty7/issues
+  - https://github.com/sidalit/tty7-snap/issues
+contact: https://github.com/sidalit/tty7-snap/issues
+
+platforms:
+  amd64:
+  arm64:
+
+environment:
+  PATH: $SNAP/bin:$SNAP/usr/bin:$PATH
+  TTY7_CONFIG_DIR: $SNAP_USER_COMMON/tty7
+  TTY7_SERVER_EXE: $SNAP/bin/tty7-app
+  GIT_EXEC_PATH: $SNAP/usr/lib/git-core
+  GIT_TEMPLATE_DIR: $SNAP/usr/share/git-core/templates
+
+apps:
+  tty7:
+    command: bin/tty7-app
+    extensions: [gnome]
+    plugs:
+      - home
+      - network
+      - network-bind
+      - password-manager-service
+      - removable-media
+      - unity7
+
+  cli:
+    command: bin/tty7
+    extensions: [gnome]
+    plugs:
+      - home
+      - network
+      - network-bind
+      - password-manager-service
+      - removable-media
+      - unity7
+
+parts:
+  tty7:
+    plugin: rust
+    source: https://github.com/l0ng-ai/tty7.git
+    source-tag: v$SNAPCRAFT_PROJECT_VERSION
+    source-depth: 1
+    rust-channel: stable
+    build-environment:
+      - CARGO_BUILD_JOBS: $CRAFT_PARALLEL_BUILD_COUNT
+      - LIBGSSAPI_IMPL: mit
+    build-packages:
+      - build-essential
+      - clang
+      - cmake
+      - git
+      - libfontconfig-dev
+      - libfreetype-dev
+      - libkrb5-dev
+      - libssl-dev
+      - libwayland-dev
+      - libx11-dev
+      - libxcb1-dev
+      - libxkbcommon-dev
+      - libxkbcommon-x11-dev
+      - libzstd-dev
+      - patch
+      - pkg-config
+    stage-packages:
+      - git
+      - libxkbcommon-x11-0
+      - openssh-client
+    override-pull: |
+      craftctl default
+      patch -p1 < "$CRAFT_PROJECT_DIR/snap/local/snap-environment.patch"
+    override-build: |
+      cargo build --release --locked --package tty7 --package tty7-cli \
+        --bin tty7-app --bin tty7
+
+      install -Dm755 target/release/tty7-app target/release/tty7 \
+        -t "$CRAFT_PART_INSTALL/bin"
+      install -Dm644 assets/completions/*.json \
+        -t "$CRAFT_PART_INSTALL/bin/completions"
+      install -Dm644 "$CRAFT_PROJECT_DIR/snap/gui/tty7.png" \
+        "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/tty7.png"
+      install -Dm644 LICENSE "$CRAFT_PART_INSTALL/usr/share/doc/tty7/LICENSE"
+      install -Dm644 assets/fonts/hack/LICENSE.md \
+        "$CRAFT_PART_INSTALL/usr/share/doc/tty7/Hack-LICENSE.md"
+    prime:
+      - -usr/share/man

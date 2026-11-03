@@ -1,0 +1,84 @@
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -471,6 +471,10 @@
+ 
+ #[cfg(unix)]
+ fn enrich_path_from_login_shell() {
++    // Keep the tool paths supplied by the snap launcher.
++    if std::env::var_os("SNAP").is_some() {
++        return;
++    }
+     let shell = crate::core::shells::login_shell();
+     let fish = std::path::Path::new(&shell).file_name() == Some("fish".as_ref());
+     let cmd = if fish {
+--- a/src/core/cli_install.rs
++++ b/src/core/cli_install.rs
+@@ -102,7 +102,8 @@
+ }
+ 
+ fn install_inner(enabled: bool) -> Outcome {
+-    if !enabled {
++    // snapd exposes the CLI; direct symlinks would bypass its launcher.
++    if !enabled || std::env::var_os("SNAP").is_some() {
+         return Outcome::Disabled;
+     }
+     let Some(cli) = bundled_cli() else {
+--- a/src/core/update.rs
++++ b/src/core/update.rs
+@@ -294,6 +294,10 @@
+ }
+ 
+ fn spawn_check_inner(report_failure: bool, cx: &mut App) {
++    // Desktop updates are managed by snapd.
++    if std::env::var_os("SNAP").is_some() {
++        return;
++    }
+     if is_busy(cx) {
+         return;
+     }
+@@ -994,6 +998,9 @@
+ /// Every failure path clears the plan and returns `false`. An update that
+ /// cannot be applied must never become an app that will not start.
+ pub fn apply_pending_at_launch() -> bool {
++    if std::env::var_os("SNAP").is_some() {
++        return false;
++    }
+     let mut state = UpdateState::load();
+     let Some(pending) = state.pending.clone() else {
+         return false;
+--- a/crates/tty7-core/src/core/shells.rs
++++ b/crates/tty7-core/src/core/shells.rs
+@@ -242,6 +242,9 @@
+ pub fn login_shell() -> String {
+     #[cfg(unix)]
+     {
++        if std::env::var_os("SNAP").is_some() {
++            return "/bin/bash".to_string();
++        }
+         pick_login_shell(passwd_shell(), std::env::var("SHELL").ok())
+     }
+     #[cfg(windows)]
+--- a/crates/tty7-core/src/daemon/pane.rs
++++ b/crates/tty7-core/src/daemon/pane.rs
+@@ -29,6 +29,10 @@
+ 
+ #[cfg(not(windows))]
+ fn default_prog() -> CommandBuilder {
++    // The host login shell may not exist inside the snap.
++    if std::env::var_os("SNAP").is_some() {
++        return CommandBuilder::new("/bin/bash");
++    }
+     default_prog_with_override(detected_shell_override())
+ }
+ 
+--- a/crates/tty7-core/src/daemon/shell_integration.rs
++++ b/crates/tty7-core/src/daemon/shell_integration.rs
+@@ -1046,7 +1046,7 @@
+ __tty7_bashrc=0
+ source() {{ case "${{1-}}" in */.bashrc|.bashrc) __tty7_bashrc=1;; esac; builtin source "$@"; }}
+ .() {{ case "${{1-}}" in */.bashrc|.bashrc) __tty7_bashrc=1;; esac; builtin . "$@"; }}
+-if [[ -f /etc/profile ]]; then source /etc/profile; fi
++if [[ -z "${{SNAP:-}}" && -f /etc/profile ]]; then source /etc/profile; fi
+ if [[ -f ~/.bash_profile ]]; then
+   source ~/.bash_profile
+ elif [[ -f ~/.bash_login ]]; then
