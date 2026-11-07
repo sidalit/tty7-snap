@@ -74,11 +74,6 @@ sudo snap install snapcraft --classic
 snapcraft pack
 ```
 
-```bash
-sudo snap install --dangerous ./tty7_*.snap
-tty7
-```
-
 ## Support
 
 - **Installation or snap issues:** [open a packaging issue](https://github.com/sidalit/tty7-snap/issues).
